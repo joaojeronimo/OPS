@@ -1,0 +1,123 @@
+<html>
+  <head>
+    <title>How many OPS can my browser do ?</title>
+    <link href='http://fonts.googleapis.com/css?family=Allerta' rel='stylesheet' type='text/css'>
+    <style type="text/css">
+      body {
+        background: #5D9FBA;
+      }
+
+      h1 {
+        font-family: 'Allerta', sans-serif;
+        font-size: 50pt;
+        text-align: center;
+        padding-top: 80px;
+        color: #F0F0F0;
+      }
+
+      #ops {
+        font-family: 'Allerta', sans-serif;
+        font-size: 220pt;
+        text-align: center;
+        color: #F0F0F0;
+      }
+
+      #gflops {
+        font-family: 'Allerta', sans-serif;
+        font-size: 60pt;
+        text-align: center;
+        color: #F0F0F0;
+      }
+
+      abbr {
+        border-bottom: 1px dotted white;
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>How many OPS can my browser do ?</h1>
+    <div id="ops"></div>
+    <div id="gflops">
+      <abbr
+        title="G Floating Point Operations Per Second. Well, not really. Probably not very accurate. Anyway, the main assumption is, a matrix multiplication of line size N, and column size N (yes, a square matrix) needs 2*N^3 floating point operations" id="result">multiplying matrices...</abbr>
+    </div>
+    <script id="worker" type="text/js-worker">
+      function multiplyMatrix(m1, m2) {
+         var result = [];
+         var m2length = m2.length;
+         var m10length = m1[0].length;
+         var m1length = m1.length;
+         for(var j = 0; j < m2length; j++) {
+             result[j] = [];
+             for(var k = 0; k < m10length; k++) {
+                 var sum = 0;
+                 for(var i = 0; i < m1length; i++) {
+                     sum += m1[i][k] * m2[j][i];
+                 }
+                 result[j].push(sum);
+             }
+         }
+         return result;
+      }
+
+      var NLINES = 1000;
+      var NCOLUMNS = 1000;
+      var line = [];
+      var matrix = [];
+
+      var n = NLINES;
+      while (n--) {
+        line.push(Math.random());
+      }
+
+      var i = NCOLUMNS;
+      while (i--) {
+        matrix.push(line);
+      }
+
+      self.onmessage = compute;
+
+      function compute () {
+        var start = Date.now();
+        multiplyMatrix(matrix, matrix);
+        var time = Date.now() - start;
+        self.postMessage({
+          time: time,
+          ops: (1000*1000*1000*2)
+        });
+      }
+    </script>
+    <script type="text/javascript">
+      var workerCode = document
+                         .getElementById('worker')
+                         .innerHTML;
+
+      var workerBlob = new Blob([workerCode], {
+        'type' : 'text\/javascript'
+      });
+
+      var workerBlobUrl = URL.createObjectURL(workerBlob);
+      var worker = new Worker(workerBlobUrl);
+      worker.onmessage = displayResult;
+
+      var ops;
+
+      function compute () {
+        worker.postMessage('do it!');
+        ops = document.querySelector('#ops');
+        gflops = document.querySelector('#result');
+      }
+
+      compute();
+
+      function displayResult (ev) {
+        var result = ev.data;
+        var FLOPS = result.time/result.ops;
+        var GFLOPS = FLOPS / 1e9;
+        ops.innerHTML = GFLOPS.toPrecision(3);
+        gflops.innerHTML = 'GFLOPS';
+      }
+    </script>
+  </body>
+</html>
