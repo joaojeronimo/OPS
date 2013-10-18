@@ -9,7 +9,7 @@
 
       h1 {
         font-family: 'Allerta', sans-serif;
-        font-size: 50pt;
+        font-size: 380%;
         text-align: center;
         padding-top: 80px;
         color: #F0F0F0;
@@ -17,20 +17,36 @@
 
       #ops {
         font-family: 'Allerta', sans-serif;
-        font-size: 220pt;
+        font-size: 400%;
         text-align: center;
         color: #F0F0F0;
       }
 
       #gflops {
         font-family: 'Allerta', sans-serif;
-        font-size: 60pt;
+        font-size: 450%;
         text-align: center;
         color: #F0F0F0;
       }
 
       abbr {
-        border-bottom: 1px dotted white;
+        cursor: pointer;
+        border-bottom: 1px dashed white;
+      }
+
+      #nope {
+        width: 40%;
+        margin: 0 auto;
+      }
+
+      small {
+        font-size: 30%;
+        width: 40%;
+        text-align: justify;
+      }
+
+      #unity {
+        display: none;
       }
 
     </style>
@@ -39,9 +55,62 @@
     <h1>How many OPS can my browser do ?</h1>
     <div id="ops"></div>
     <div id="gflops">
-      <abbr
-        title="G Floating Point Operations Per Second. Well, not really. Probably not very accurate. Anyway, the main assumption is, a matrix multiplication of line size N, and column size N (yes, a square matrix) needs 2*N^3 floating point operations" id="result">multiplying matrices...</abbr>
+      <p>wait for it...</p>
+      <div id="nope"><small>actually if you feel like you've been here for too long it probably means you have a very old computer that cannot do much OPS, so feel free to go do what you usually do when you're not trying to know how many OPS your browser has..</small></div>
+      <div id="unity">GFLOPS</div>
     </div>
+    <script>
+      // Closure
+      (function(){
+
+        /**
+         * Decimal adjustment of a number.
+         *
+         * @param {String}  type  The type of adjustment.
+         * @param {Number}  value The number.
+         * @param {Integer} exp   The exponent (the 10 logarithm of the adjustment base).
+         * @returns {Number}      The adjusted value.
+         */
+        function decimalAdjust(type, value, exp) {
+          // If the exp is undefined or zero...
+          if (typeof exp === 'undefined' || +exp === 0) {
+            return Math[type](value);
+          }
+          value = +value;
+          exp = +exp;
+          // If the value is not a number or the exp is not an integer...
+          if (isNaN(value) || !(typeof exp === 'number' && exp % 1 === 0)) {
+            return NaN;
+          }
+          // Shift
+          value = value.toString().split('e');
+          value = Math[type](+(value[0] + 'e' + (value[1] ? (+value[1] - exp) : -exp)));
+          // Shift back
+          value = value.toString().split('e');
+          return +(value[0] + 'e' + (value[1] ? (+value[1] + exp) : exp));
+        }
+
+        // Decimal round
+        if (!Math.round10) {
+          Math.round10 = function(value, exp) {
+            return decimalAdjust('round', value, exp);
+          };
+        }
+        // Decimal floor
+        if (!Math.floor10) {
+          Math.floor10 = function(value, exp) {
+            return decimalAdjust('floor', value, exp);
+          };
+        }
+        // Decimal ceil
+        if (!Math.ceil10) {
+          Math.ceil10 = function(value, exp) {
+            return decimalAdjust('ceil', value, exp);
+          };
+        }
+
+      })();
+    </script>
     <script id="worker" type="text/js-worker">
       function multiplyMatrix(m1, m2) {
          var result = [];
@@ -61,8 +130,8 @@
          return result;
       }
 
-      var NLINES = 1000;
-      var NCOLUMNS = 1000;
+      var NLINES = 700;
+      var NCOLUMNS = 700;
       var line = [];
       var matrix = [];
 
@@ -83,12 +152,17 @@
         multiplyMatrix(matrix, matrix);
         var time = Date.now() - start;
         self.postMessage({
-          time: time,
-          ops: (1000*1000*1000*2)
+          ms: time,
+          ops: 2*Math.pow(700, 3)
         });
       }
     </script>
     <script type="text/javascript">
+      function removeEl (q) {
+        var el = document.querySelector(q)
+        return el.parentNode.removeChild(el);
+      }
+
       var workerCode = document
                          .getElementById('worker')
                          .innerHTML;
@@ -101,22 +175,31 @@
       var worker = new Worker(workerBlobUrl);
       worker.onmessage = displayResult;
 
-      var ops;
+      var gflops = document.querySelector('#gflops');
+      var ops = document.querySelector('#ops');
+      var unity = document.querySelector('#unity');
 
       function compute () {
         worker.postMessage('do it!');
-        ops = document.querySelector('#ops');
-        gflops = document.querySelector('#result');
       }
 
       compute();
 
+      var resultEl = document.createElement('abbr');
+      resultEl.id = "ops";
+      resultEl.title = 'Well, not really. Probably not very accurate. Anyway, the main assumption is, a matrix multiplication of line size N, and column size N (yes, a square matrix) needs 2*N^3 floating point operations';
+
+
       function displayResult (ev) {
         var result = ev.data;
-        var FLOPS = result.time/result.ops;
+        var FLOPS = (result.ops / result.ms) * 1e3;
         var GFLOPS = FLOPS / 1e9;
-        ops.innerHTML = GFLOPS.toPrecision(3);
-        gflops.innerHTML = 'GFLOPS';
+        resultEl.innerHTML = Math.round10(GFLOPS, -3);
+        gflops.insertBefore(resultEl, unity);
+
+        unity.style.display = 'block';
+        removeEl('#gflops p');
+        removeEl('#gflops #nope');
       }
     </script>
   </body>
