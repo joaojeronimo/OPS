@@ -195,11 +195,10 @@
         var FLOPS = (result.ops / result.ms) * 1e3;
         var GFLOPS = FLOPS / 1e9;
         resultEl.innerHTML = Math.round10(GFLOPS, -3);
-        gflops.insertBefore(resultEl, unity);
-
-        unity.style.display = 'block';
         removeEl('#gflops p');
         removeEl('#gflops #nope');
+        gflops.insertBefore(resultEl, unity);
+        unity.style.display = 'block';
       }
     </script>
   </body>
